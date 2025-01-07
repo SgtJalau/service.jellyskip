@@ -1,9 +1,11 @@
-from helper import LazyLogger
+import logging
 from monitor import JellySkipMonitor
+from utils import log
 
-LOG = LazyLogger(__name__)
+if __name__ == "__main__":
+    logging.getLogger().name = "Jellyskip"
+    log("Loading service.py")
+    monitor = JellySkipMonitor()
+    monitor.run()
 
-LOG.info("Loading service.py")
-
-JellySkipMonitor().start()
-
+    del monitor

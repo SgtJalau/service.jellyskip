@@ -1,93 +1,158 @@
-import xbmc, xbmcaddon
-import helper.utils as utils
+import xbmc
 
-from skip_dialogue import CustomDialog
-from jellyfin.jellyfin_grabber import JellyfinHack
-from skip_dialogue import CustomDialog
-from helper import LazyLogger
-
-addonInfo = xbmcaddon.Addon().getAddonInfo
-addonPath = utils.translate_path(addonInfo('path'))
-
-LOG = LazyLogger(__name__)
-
-SECOND_PADDING = 1
-
+from threading import Thread, Event, Condition
+from utils import get_player_speed, calc_wait_time, log, log_exception
+from skip_dialogue import SkipDialog
+from jellyfin.media_segments import MediaSegmentResponse
 
 class DialogueHandler:
 
     def __init__(self):
-        self.dialogue = None
-        self.scheduled_thread = None
-        self.last_item = None
+        self.media_segments = None
+        self.shown_segments = set()
 
-    def cancel_scheduled(self):
-        if self.scheduled_thread:
-            self.scheduled_thread.cancel()
-            self.scheduled_thread = None
-            LOG.info("Cancelled existing scheduled dialogue")
+        self.dialog = SkipDialog() # must create on main thread
 
-    def schedule_skip_gui(self, item, current_seconds):
+        self.event_exit = Event()
+        self.event_force_sleep = Event()
+        self.event_recalculate = Event()
+        self.cond = Condition()
+
+        self.thread_loop = Thread(target=self._loop_thread, name="DialogueHandler_loop", daemon=True)
+        self.thread_loop.start()
+
+    def __del__(self):
+        self.stop_loop_thread_request()
+        del self.dialog
+
+    def stop_loop_thread_request(self):
+        if self.event_exit.is_set():
+            return
+        self._set_event(self.event_exit)
+        log('Stopping DialogueHandler')
+
+    def set_media_segments(self, media_segments: MediaSegmentResponse):
+        ### XXX: Lock?
+        if media_segments and self.media_segments:
+            log("Media segments already assigned (should not happen)")
+            return
+
+        self.media_segments = media_segments
+        self.shown_segments = set()
+
+    def close_dialog(self):
+        ### XXX: Lock?
+        self.dialog.close()
+
+    def trigger_recalculate(self):
+        self._set_event(self.event_recalculate)
+
+    def trigger_force_sleep(self):
+        self._set_event(self.event_force_sleep)
+
+    def _set_event(self, event):
+        event.set()
+        with self.cond:
+            self.cond.notify()
+
+    def _get_req_info_for_segment(self):
+        if not self.media_segments:
+            return None, None
+
+        curr_speed = get_player_speed()
+        if not curr_speed or curr_speed < 1:
+            return None, None
+
+        try:
+            current_time_seconds = xbmc.Player().getTime()
+        except RuntimeError:
+            log_exception()
+            return None, None
+
+        return current_time_seconds, curr_speed
+
+    def _find_suitable_item(self, current_time_seconds):
+        if current_time_seconds is None:
+            return None
+
+        item = self.media_segments.get_next_item(current_time_seconds)
         if not item:
-            return
+            return None
 
-        # Cancel any existing scheduled thread
-        self.cancel_scheduled()
+        while item.segment_id in self.shown_segments:
+            item = self.media_segments.get_next_item(item.get_end_seconds())
+            if not item:
+                return None
 
-        if item.get_start_seconds() < current_seconds:
-            self.open_gui(item)
-        else:
-            seconds_till_start = item.get_start_seconds() - current_seconds
-            self.scheduled_thread = utils.run_threaded(self.on_gui_scheduled, delay=seconds_till_start + SECOND_PADDING,
-                                                       kwargs={'item': item})
-            LOG.info(
-                f"Scheduled dialogue for {item.get_segment_type_display()} at {item.get_start_seconds()} in {seconds_till_start} seconds")
+        return item
 
-    def on_gui_scheduled(self, item):
-        self.scheduled = item
+    def _determine_wait_time(self, item=None, end_time=False):
+        current_time_seconds, curr_speed = self._get_req_info_for_segment()
+        if item is None:
+            item = self._find_suitable_item(current_time_seconds)
+        log(f"({current_time_seconds} {curr_speed} {end_time}) Wait time determined from {item}",)
+        if item is None:
+            return None
+        return calc_wait_time(item.get_start_seconds() if not end_time else item.get_end_seconds(), current_time_seconds, curr_speed)
 
-        player = xbmc.Player()
-        current_seconds = player.getTime()
+    def _run_dialog_thread(self):
+        log(f"Showing skip dialog")
+        self.dialog.doModal()
+        log(f"Closing skip dialog")
 
-        LOG.info(
-            f"Opening scheduled dialogue for {item.get_segment_type_display()} at {item.get_start_seconds()} as we are within the segment")
-        if item.get_start_seconds() <= current_seconds <= item.get_end_seconds() - SECOND_PADDING:
-            self.open_gui(item)
-        else:
-            # We are not within the segment
-            LOG.info(
-                f"Skipping dialogue for {item.get_segment_type_display()} at {item.get_start_seconds()} as we are not within the segment")
-            return
+    def _loop_thread(self):
+        log("Live from DialogueHandler's loop thread")
 
-    def close_gui(self):
-        if self.dialogue:
-            self.dialogue.close()
-            self.dialogue = None
+        thread_dialog_display = None
+        next_timeout = None
+        force_recalc = False
+        with self.cond:
+            while True:
+                log(f'Waiting on `cond` (timeout: {next_timeout})')
+                notified = self.cond.wait(next_timeout)
+                log(
+                    f"notified: {notified} force_recalc: {force_recalc} thread_dialog_display: {thread_dialog_display != None} "
+                    f"event_exit.is_set: {self.event_exit.is_set()} event_recalculate.is_set: {self.event_recalculate.is_set()} "
+                    f"event_force_sleep.is_set: {self.event_force_sleep.is_set()}"
+                )
 
-    def is_last_item(self, item):
-        if not self.last_item or not item:
-            return False
+                if notified:
+                    if self.event_force_sleep.is_set():
+                        self.cond.wait(None)
+                        self.event_force_sleep.clear()
 
-        same_item_id = item.item_id == self.last_item.item_id
-        same_type = item.segment_type== self.last_item.segment_type
-        same_start = item.get_start_seconds() == self.last_item.get_start_seconds()
-        same_end = item.get_end_seconds() == self.last_item.get_end_seconds()
+                if thread_dialog_display is not None:
+                    self.close_dialog()
+                    if thread_dialog_display.is_alive():
+                        thread_dialog_display.join(0.1)
+                    thread_dialog_display = None
 
-        return same_item_id and same_type and same_start and same_end
+                if self.event_exit.is_set():
+                    log('Stopping DialogueHandler loop thread')
+                    break
 
-    def open_gui(self, item):
-        if self.is_last_item(item):
-            LOG.info(f"Skipping dialogue for {item.get_segment_type_display()} at {item.get_start_seconds()} as it is the same as the last item")
-            return
+                if force_recalc or self.event_recalculate.is_set():
+                    force_recalc = False
+                    next_timeout = self._determine_wait_time() if self.media_segments else None
+                    log(f"Recalculated, next timeout: {next_timeout}")
+                    self.event_recalculate.clear()
+                    continue
 
-        self.last_item = item
-        LOG.info(f"Opening dialogue for {item.get_segment_type_display()} at {item.get_start_seconds()}")
-        self.close_gui()
-        dialog = CustomDialog('script-dialog.xml', addonPath, seek_time_seconds=item.get_end_seconds(),
-                              segment_type=item.get_segment_type_display())
-        self.dialogue = dialog
-        dialog.doModal()
-        del dialog
+                if notified:
+                    continue
 
+                info = self._get_req_info_for_segment()
+                log(f"Current playback info : time={info[0]}, speed={info[1]}")
+                if item := self._find_suitable_item(info[0]):
+                    log(f"Will show skip dialog for {item}")
+                    self.shown_segments.add(item.segment_id)
+                    self.dialog.setItem(item)
+                    thread_dialog_display = Thread(target=self._run_dialog_thread, name="DialogueHandler_display", daemon=True)
+                    thread_dialog_display.start()
+                    next_timeout = self._determine_wait_time(item=item, end_time=True)
+                    force_recalc = True
+                    log(f"Closing dialog automatically in {next_timeout}")
+                    continue
 
-dialogue_handler = DialogueHandler()
+                next_timeout = None
+                log(f"No segment found to display dialog for, sleeping until signalled")

@@ -4,9 +4,6 @@
         <import addon="xbmc.python" version="3.0.0"/>
 	</requires>
 	<extension point="xbmc.service" library="resources/lib/service.py"/>
-	<extension point="xbmc.python.script" library="addon.py">
-		<provides>executable</provides>
-	</extension>
 	<extension point="xbmc.addon.metadata">
 		<platform>all</platform>
 		<summary lang="en">Interact with Jellyfin Media Segments</summary>
@@ -15,10 +12,6 @@
 		<language></language>
 		<assets>
 			<icon>icon.png</icon>
-			<fanart>fanart.jpg</fanart>
-			<screenshot>resources/screenshot-01.jpg</screenshot>
-			<screenshot>resources/screenshot-02.jpg</screenshot>
-			<screenshot>resources/screenshot-03.jpg</screenshot>
 		</assets>
 		<news>Initial release</news>
 	</extension>

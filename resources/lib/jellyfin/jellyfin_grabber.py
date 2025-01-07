@@ -1,92 +1,79 @@
 # -*- coding: utf-8 -*-
 # GNU General Public License v2.0 (see COPYING or https://www.gnu.org/licenses/gpl-2.0.txt)
 import json
+import sqlite3
 import urllib.request
 import xbmcvfs
 
-from helper import LazyLogger
-LOG = LazyLogger(__name__)
-
 from .media_segments import MediaSegmentResponse
+from utils import log
 
 class JellyfinHack:
-    def __init__(self):
-        self.jellyfin_itemid = None
-        self._jellyfin_server = None
-        self._jellyfin_apikey = None
-        self.media_segments = None
+    __jellyfin_db_path = None
+    _jellyfin_server = None
+    _jellyfin_apikey = None
 
-    def event_handler_jellyfin_userdatachanged(self, _, **kwargs):
-        if kwargs.get("sender") != "plugin.video.jellyfin":
-            return
+    @staticmethod
+    def get_jf_item_id_from_kodi_id(kodi_id, media_type):
+        if kodi_id and media_type:
+            with sqlite3.connect(f"file:{JellyfinHack._jellyfin_db_path()}?mode=ro", uri=True) as conn:
+                cursor = None
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT jellyfin_id FROM jellyfin WHERE kodi_id = ? AND media_type = ?", (kodi_id, media_type,))
+                    return cursor.fetchone()[0]
+                finally:
+                    if cursor:
+                        cursor.close()
 
-        self.reset_itemid()
+        return None
 
+    @staticmethod
+    def fetch_media_segments(jellyfin_itemid):
+        JellyfinHack._setup_jellyfin_server()
+        api_endpoint = f"MediaSegments/{jellyfin_itemid}"
+
+        response = JellyfinHack._make_request(api_endpoint)
+        media_segments = MediaSegmentResponse.from_json(response)
+        log(f"MediaSegments: {media_segments}")
+
+        return media_segments
+
+    @staticmethod
+    def _jellyfin_db_path():
+        if JellyfinHack.__jellyfin_db_path is not None:
+            return JellyfinHack.__jellyfin_db_path
+
+        db_path = None
         try:
-            self.jellyfin_itemid = json.loads(kwargs["data"])[0]["UserDataList"][0]["ItemId"]
+            with open(xbmcvfs.translatePath("special://home/addons/plugin.video.jellyfin/jellyfin_kodi/objects/obj_map.json")) as f:
+                obj_map = json.load(f)
+            db_path = obj_map["jellyfin"]
         except Exception:
-            self.jellyfin_itemid = None
+            pass
 
-    def setup_jellyfin_server(self):
-        if not self._jellyfin_server:
-            with open(xbmcvfs.translatePath("special://profile/addon_data/plugin.video.jellyfin/data.json"),
-                      "rb") as f:
+        if not db_path:
+            db_path = "special://database/jellyfin.db"
+
+        JellyfinHack.__jellyfin_db_path = xbmcvfs.translatePath(db_path)
+        return JellyfinHack.__jellyfin_db_path
+
+    @staticmethod
+    def _setup_jellyfin_server():
+        if not JellyfinHack._jellyfin_server:
+            with open(xbmcvfs.translatePath("special://profile/addon_data/plugin.video.jellyfin/data.json")) as f:
                 jf_servers = json.load(f)
-            self._jellyfin_apikey = jf_servers["Servers"][0]["AccessToken"]
-            self._jellyfin_server = jf_servers["Servers"][0]["address"]
+            JellyfinHack._jellyfin_apikey = jf_servers["Servers"][0]["AccessToken"]
+            JellyfinHack._jellyfin_server = jf_servers["Servers"][0]["address"]
 
-    def make_request(self, api_endpoint):
-        url = f"{self._jellyfin_server}/{api_endpoint}"
+    @staticmethod
+    def _make_request(api_endpoint):
+        url = f"{JellyfinHack._jellyfin_server}/{api_endpoint}"
         req = urllib.request.Request(url, headers={
             "Accept": "application/json",
-            "Authorization": f"MediaBrowser Token={self._jellyfin_apikey}",
+            "Authorization": f"MediaBrowser Token={JellyfinHack._jellyfin_apikey}",
         })
 
         with urllib.request.urlopen(req, timeout=5) as response:
             return json.load(response)
 
-    def has_itemid(self):
-        return self.jellyfin_itemid is not None
-
-    def reset_itemid(self):
-        self.jellyfin_itemid = None
-        self.media_segments = None
-
-    def get_media_segments(self):
-        if self.media_segments is None:
-            self._fetch_media_segments()
-        return self.media_segments
-
-    def _fetch_media_segments(self):
-        ret = None
-        try:
-            if self.jellyfin_itemid:
-                self.setup_jellyfin_server()
-                api_endpoint = f"MediaSegments/{self.jellyfin_itemid}"
-
-                ret = self.make_request(api_endpoint)
-
-                media_segments_response = MediaSegmentResponse.from_json(ret)
-                self.media_segments = media_segments_response
-
-                LOG.info(f"MediaSegments: {media_segments_response}")
-            else:
-                LOG.info("No itemid")
-        except Exception:
-            pass
-        finally:
-            return ret
-
-    def get_credits_time(self):
-        ret = 0
-        try:
-            if self.jellyfin_itemid:
-                self.setup_jellyfin_server()
-                api_endpoint = f"Episode/{self.jellyfin_itemid}/IntroTimestamps/v1?mode=Credits"
-
-                ret = self.make_request(api_endpoint)["IntroStart"]
-        except Exception:
-            pass
-        finally:
-            self.jellyfin_itemid = None
-            return ret
