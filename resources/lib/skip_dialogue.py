@@ -1,12 +1,11 @@
 import xbmcgui, xbmc
+from xbmcgui import ACTION_NAV_BACK, ACTION_PREVIOUS_MENU, ACTION_STOP
 
 import helper.utils as utils
 from helper import LazyLogger
 
 OK_BUTTON = 2101
 
-ACTION_PREVIOUS_MENU = 10
-ACTION_BACK = 92
 INSTRUCTION_LABEL = 203
 AUTHCODE_LABEL = 204
 WARNING_LABEL = 205
@@ -56,7 +55,7 @@ class SkipSegmentDialogue(xbmcgui.WindowXMLDialog):
         xbmc.executebuiltin("NotifyAll(%s, %s, %s)" % (sender, "Jellyskip.DialogueClosed", {}))
 
     def onAction(self, action):
-        if action == ACTION_PREVIOUS_MENU or action == ACTION_BACK:
+        if action in (ACTION_NAV_BACK, ACTION_PREVIOUS_MENU, ACTION_STOP):
             self.close()
 
     def onControl(self, control):
