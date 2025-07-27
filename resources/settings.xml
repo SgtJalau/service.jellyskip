@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<settings version="1">
+    <section id="service.jellyskip">
+        <category id="countdown" label="30100" help="">
+            <group id="1" label="">
+                <setting id="enable_countdown" type="boolean" label="30101" help="">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle" />
+                </setting>
+                <setting id="countdown_duration" type="integer" label="30102" help="">
+                    <level>0</level>
+                    <default>15</default>
+                    <constraints>
+                        <minimum>5</minimum>
+                        <maximum>30</maximum>
+                        <step>1</step>
+                    </constraints>
+                    <control type="slider" />
+                    <dependencies>
+                        <dependency type="visible" setting="enable_countdown">true</dependency>
+                    </dependencies>
+                </setting>
+                <setting id="auto_play_next" type="boolean" label="30103" help="">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle" />
+                    <dependencies>
+                        <dependency type="visible" setting="enable_countdown">true</dependency>
+                    </dependencies>
+                </setting>
+                <setting id="show_cancel" type="boolean" label="30104" help="">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle" />
+                    <dependencies>
+                        <dependency type="visible" setting="enable_countdown">true</dependency>
+                    </dependencies>
+                </setting>
+            </group>
+        </category>
+        <category id="general" label="30200" help="">
+            <group id="1" label="">
+                <setting id="enable_intro_skip" type="boolean" label="30201" help="">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle" />
+                </setting>
+                <setting id="skip_season_zero" type="boolean" label="30105" help="">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle" />
+                </setting>
+            </group>
+        </category>
+    </section>
+</settings>

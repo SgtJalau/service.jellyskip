@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window id="9998" type="dialog">
+    <defaultcontrol always="true">3003</defaultcontrol>
+    <coordinates>
+        <left>1320</left>
+        <top>880</top>
+    </coordinates>
+    <animation effect="fade" start="0" end="100" time="300">WindowOpen</animation>
+    <animation effect="fade" start="100" end="0" time="300">WindowClose</animation>
+    <controls>
+        <!-- Main background -->
+        <control type="image">
+            <left>0</left>
+            <top>0</top>
+            <width>580</width>
+            <height>180</height>
+            <texture border="20">dialogs/dialog-bg.png</texture>
+            <colordiffuse>dd000000</colordiffuse>
+        </control>
+        
+        <!-- "Up Next" label -->
+        <control type="label">
+            <left>20</left>
+            <top>20</top>
+            <width>540</width>
+            <height>25</height>
+            <label>Up Next</label>
+            <font>font12</font>
+            <textcolor>ffcccccc</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+        </control>
+        
+        <!-- Episode title -->
+        <control type="label" id="3002">
+            <left>20</left>
+            <top>50</top>
+            <width>540</width>
+            <height>30</height>
+            <label>Next: S03E11 - Apple Thief</label>
+            <font>font13_title</font>
+            <textcolor>ffffffff</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+        </control>
+        
+        <!-- Play Now Button - Made wider for countdown text -->
+        <control type="button" id="3003">
+            <left>110</left>
+            <top>110</top>
+            <width>160</width>
+            <height>45</height>
+            <label>Play Now (15)</label>
+            <font>font12</font>
+            <textcolor>ffffffff</textcolor>
+            <focusedcolor>ffffffff</focusedcolor>
+            <texturenofocus>button-nofo.png</texturenofocus>
+            <texturefocus>button-fo.png</texturefocus>
+            <onright>3004</onright>
+        </control>
+        
+        <!-- Cancel Button - Made wider so text isn't cut off -->
+        <control type="button" id="3004">
+            <left>290</left>
+            <top>110</top>
+            <width>160</width>
+            <height>45</height>
+            <label>Cancel</label>
+            <font>font12</font>
+            <textcolor>ffffffff</textcolor>
+            <focusedcolor>ffffffff</focusedcolor>
+            <texturenofocus>button-nofo.png</texturenofocus>
+            <texturefocus>button-fo.png</texturefocus>
+            <onleft>3003</onleft>
+        </control>
+    </controls>
+</window>

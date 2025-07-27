@@ -1,69 +1,67 @@
-# Jellyskip
+# JellySkip - Netflix-Style Auto-Skip for Jellyfin
+**Status: Proof of Concept / Vibe Coded** 🔬
 
-Jellyskip is a Kodi service that interacts with the Jellyfin Media Segments API to provide a button for skipping media segments such as intros and outros. This tool enhances your media watching experience by allowing you to easily skip unwanted segments with a single click.
+JellySkip is a Kodi service addon that adds Netflix-style countdown functionality to Jellyfin media playback. This started as a simple intro skip addon and evolved into something more ambitious through iterative "vibe coding" sessions.
 
-For example use [intro-skipper](https://github.com/intro-skipper/intro-skipper) jellyfin addon to create intro segments for your media files.
-Then install this addon in Kodi alongside [jellyfin kodi](https://github.com/jellyfin/jellyfin-kodi) addon to skip the intro segments.
+**⚠️ Transparency**: This is very much a proof of concept that was developed through experimental coding sessions. While it works well in testing, it hasn't been through rigorous production development practices. The goal is to eventually contribute this functionality to the main Jellyfin-Kodi project.
 
+## What Actually Works (Tested Functionality)
 
-## Usage
+### ✅ Netflix-Style Countdown
+- Countdown dialog appears during outro segments
+- Shows next episode info: "Next: S03E11 - Episode Title"  
+- 15-second countdown with "Play Now" and "Cancel" buttons
+- Auto-advances to next episode when timer expires
+- Positioned in bottom-right corner like Netflix
 
+### ✅ Settings Integration  
+- Modern Kodi Matrix settings format
+- Enable/disable countdown functionality
+- Configurable countdown duration (5-30 seconds)
+- Toggle auto-advance behavior
+- Works alongside existing intro skip
+
+### ✅ Preserved Original Functionality
+- Traditional intro skip button (original JellySkip behavior)
+- All existing segment detection capabilities
 
 <details> 
-  <summary>Presents a button to skip media segments (e.g., intro, outro)</summary>
-    <img src="https://i.imgur.com/hL62YyN.png" alt=""/>
+  <summary>Original Skip Button (still works)</summary>
+    <img src="https://i.imgur.com/hL62YyN.png" alt="Original skip button"/>
 </details>
 
+## Current Limitations & "Vibe Coded" Aspects
+
+### 🔧 Known Issues
+- **Limited testing environments**: Primarily tested on CoreELEC with specific Jellyfin setup
+- **Error handling**: Basic fallbacks implemented, but edge cases likely exist  
+- **UI responsiveness**: Dialog positioning may need tweaks on different screen resolutions
+- **Code organization**: Functional but could benefit from more structured architecture
+
+### 🎯 "Proof of Concept" Status
+- **Rapid iteration**: Features added through experimental development sessions
+- **Minimal testing**: Works in my environment, but broader compatibility unknown
+- **Documentation**: Added retroactively, may not cover all scenarios
+- **Performance**: No optimization or performance testing conducted
+
 ## Requirements
-- *Jellyfin Server 10.10.0* or later (with Media Segments API enabled)
-- Manually or automatically created media segments in Jellyfin (e.g., intro, outro)
-- *Jellyfin-Kodi* addon installed and configured
-- Jellyfin instance reachable from Kodi
 
-## Installation
+- **Kodi Matrix (19.0+)** (tested on Kodi 21.2)
+- **Jellyfin Server 10.10.0+** with Media Segments API
+- **Jellyfin intro-skipper plugin** ([intro-skipper](https://github.com/intro-skipper/intro-skipper))
+- **Jellyfin-Kodi addon** installed and configured
 
-1. Download the addon code (the repository zip).
-2. Place the `service.jellyskip` folder in your Kodi `addons` directory.
-3. (Re)start Kodi.
-4. Enable/Install the addon.
-5. Enjoy!
+## Installation (Use at Your Own Risk)
 
-## Usage
+### For Testing/Development
+```bash
+git clone https://github.com/YOUR_USERNAME/service.jellyskip.git
+cd service.jellyskip
 
-Once installed, Jellyskip will automatically detect media segments from Jellyfin and present a button to skip these segments during playback.
+# Option 1: Manual installation
+# Copy to: ~/.kodi/addons/service.jellyskip (Linux/Mac)
+# Copy to: %APPDATA%\Kodi\addons\service.jellyskip (Windows)
 
-## Inspiration
-
-This project was inspired (and code was taken from) by the following repositories and projects:
-
-- [service.upnext (Jellyfin hack)](https://github.com/qwerty12/service.upnext/)
-- [service.upnext (original repo)](https://github.com/im85288/service.upnext)
-- [jellyfin-kodi](https://github.com/jellyfin/jellyfin-kodi)
-- [Titan Bingie Skin Mod for Button Design](https://forum.kodi.tv/showthread.php?tid=355993)
-
-## Roadmap
-
-Depending on whether this feature is ported to the Jellyfin-Kodi addon or any other addon, this project may be deprecated.
-The current version is very simple and includes the following planned improvements:
-
-- Settings to define which segments to present a button for, skip delays, etc.
-- Bug fixes
-- Code cleanup
-
-## Potential Issues
-
-**Tested using native paths only and on Kodi Version 21.2! Experience may vary on other versions**
-
-**Quickly thrown together, proof of concept!**
-
-## License
-
-This project is licensed under the GNU General Public License, v2. See the `LICENSE` file for more details.
-
-## Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request on GitHub.
-
-## Contact
-
-For any questions or issues, please open an issue on GitHub.
+# Option 2: Use deployment script (CoreELEC/LibreELEC)
+chmod +x deploy-to-coreelec.sh
+./deploy-to-coreelec.sh
