@@ -1,0 +1,52 @@
+# Kodi Media Center language file
+# Addon Name: JellySkip
+# Addon id: service.jellyskip
+# Addon Provider: Team JellySkip
+msgid ""
+msgstr ""
+"Project-Id-Version: XBMC Addons\n"
+"Report-Msgid-Bugs-To: alanwww1@xbmc.org\n"
+"POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Kodi Translation Team\n"
+"Language-Team: English (http://www.transifex.com/projects/p/xbmc-addons/language/en/)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# Categories
+msgctxt "#30100"
+msgid "Countdown Settings"
+msgstr ""
+
+msgctxt "#30200"
+msgid "General Settings"
+msgstr ""
+
+# Countdown settings
+msgctxt "#30101"
+msgid "Enable countdown for outro segments"
+msgstr ""
+
+msgctxt "#30102"
+msgid "Countdown duration (seconds)"
+msgstr ""
+
+msgctxt "#30103"
+msgid "Auto-play next episode"
+msgstr ""
+
+msgctxt "#30104"
+msgid "Show cancel option"
+msgstr ""
+
+msgctxt "#30105"
+msgid "Skip Season 0 (specials)"
+msgstr ""
+
+# General settings
+msgctxt "#30201"
+msgid "Enable intro skip"
+msgstr ""

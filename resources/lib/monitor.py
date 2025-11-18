@@ -121,6 +121,6 @@ class JellySkipMonitor(xbmc.Monitor):
 
         LOG.info(f"Next item: {next_item}")
 
-        dialogue_handler.schedule_skip_gui(next_item, time_seconds)
+        dialogue_handler.schedule_skip_gui(next_item, time_seconds, jf_hack)
 
 

@@ -3,7 +3,6 @@ import helper.utils as utils
 
 from skip_dialogue import SkipSegmentDialogue
 from jellyfin.jellyfin_grabber import JellyfinHack
-from skip_dialogue import SkipSegmentDialogue
 from helper import LazyLogger
 
 from jellyfin.media_segments import MediaSegmentItem
@@ -23,18 +22,22 @@ class DialogueHandler:
         self.scheduled_thread = None
         self.last_item = None
 
-    def schedule_skip_gui(self, item: MediaSegmentItem, current_seconds):
+    def schedule_skip_gui(self, item: MediaSegmentItem, current_seconds, jf_hack=None):
         """
         Schedule the dialogue to open at the start of the upcoming segment.
         If the segment has already started, opens the dialogue immediately.
 
         :param item: the segment item to schedule
         :param current_seconds: the current playback time in seconds
+        :param jf_hack: the JellyfinHack instance with current itemid
         :return: None
         """
 
         if not item:
             return
+            
+        # Store jf_hack instance for later use
+        self.jf_hack = jf_hack
 
         # Cancel any existing scheduled thread
         self.cancel_scheduled()
@@ -139,11 +142,101 @@ class DialogueHandler:
         self.last_item = item
         LOG.info(f"Opening dialogue for {item.get_segment_type_display()} at {item.get_start_seconds()}")
         self.close_gui()
-        dialog = SkipSegmentDialogue('script-dialog.xml', addonPath, seek_time_seconds=item.get_end_seconds(),
-                                     segment_type=item.get_segment_type_display())
-        self.dialogue = dialog
-        dialog.doModal()
-        del dialog
+        
+        # Check if this is an outro segment and countdown is enabled
+        if item.segment_type.value == 'Outro':
+            try:
+                addon = xbmcaddon.Addon()
+                enable_countdown = addon.getSettingBool('enable_countdown')
+                if enable_countdown:
+                    self._show_countdown_dialogue(item)
+                else:
+                    self._show_skip_dialogue(item)
+            except:
+                # Fallback to countdown if settings don't exist yet
+                self._show_countdown_dialogue(item)
+        else:
+            self._show_skip_dialogue(item)
+
+    def _show_countdown_dialogue(self, item: MediaSegmentItem):
+        """Show countdown dialogue for OUTRO segments"""
+        try:
+            # Import countdown dialogue
+            from countdown_dialogue import CountdownDialogue
+            
+            # Use the stored jf_hack instance
+            next_episode = None
+            if self.jf_hack:
+                next_episode = self.jf_hack.get_next_episode()
+            else:
+                LOG.info("No jf_hack instance available")
+            
+            # Get countdown duration from settings
+            try:
+                addon = xbmcaddon.Addon()
+                countdown_duration = addon.getSettingInt('countdown_duration')
+                if countdown_duration == 0:  # Default if setting doesn't exist
+                    countdown_duration = 15
+            except:
+                countdown_duration = 15
+            
+            # Create and show countdown dialog
+            dialog = CountdownDialogue(
+                'countdown_dialogue.xml',
+                addonPath,
+                next_episode_title=next_episode.get("Name", "Unknown Episode") if next_episode else "Unknown Episode",
+                countdown_duration=countdown_duration
+            )
+            
+            self.dialogue = dialog
+            LOG.info("Showing countdown dialog for OUTRO segment")
+            dialog.doModal()
+            
+            # Handle user action
+            if dialog.user_action == 'play_now' or dialog.user_action == 'timeout':
+                self._play_next_episode(next_episode)
+                LOG.info(f"User action: {dialog.user_action}, playing next episode")
+            else:
+                LOG.info(f"User action: {dialog.user_action}, staying on current episode")
+                
+            del dialog
+            
+        except Exception as e:
+            LOG.info(f"Error showing countdown dialogue: {e}")
+            # Fallback to regular skip dialog
+            self._show_skip_dialogue(item)
+
+    def _show_skip_dialogue(self, item: MediaSegmentItem):
+        """Show regular skip dialogue for non-OUTRO segments"""
+        try:
+            dialog = SkipSegmentDialogue('script-dialog.xml', addonPath, seek_time_seconds=item.get_end_seconds(),
+                                         segment_type=item.get_segment_type_display())
+            self.dialogue = dialog
+            LOG.info(f"Showing skip dialog for {item.get_segment_type_display()} segment")
+            dialog.doModal()
+            del dialog
+            
+        except Exception as e:
+            LOG.info(f"Error showing skip dialogue: {e}")
+
+    def _play_next_episode(self, next_episode):
+        """Play the next episode using Jellyfin plugin"""
+        try:
+            if not next_episode:
+                LOG.info("No next episode to play")
+                return
+                
+            episode_id = next_episode.get('Id')
+            if episode_id:
+                # Use Jellyfin plugin URL to play next episode
+                jellyfin_url = f"plugin://plugin.video.jellyfin/?mode=play&id={episode_id}"
+                LOG.info(f"Playing next episode: {jellyfin_url}")
+                xbmc.Player().play(jellyfin_url)
+            else:
+                LOG.info("No episode ID found")
+                
+        except Exception as e:
+            LOG.info(f"Error playing next episode: {e}")
 
 
 dialogue_handler = DialogueHandler()
